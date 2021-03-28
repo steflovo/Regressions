@@ -1,1 +1,1 @@
-These guidelines are meant to provide 
+This is a pratical guide meant to provide . It is not meant to provide the theoretical underpinning the simple calculations. 
