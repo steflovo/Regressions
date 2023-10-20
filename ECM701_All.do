@@ -257,7 +257,7 @@ preserve
 restore
 
 esttab mod* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f)    mtitle(None Year State District Collapse) drop(0.* _cons)	
-qw
+
 	
 *==============================================================	
 *================ Event study =================================	
