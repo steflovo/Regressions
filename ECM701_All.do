@@ -321,7 +321,7 @@ coefplot  ev1,  keep(id_treated_*) ///
 		yaxis("") xline(4.5) yline(0) vertical  name(method1, replace)  ///
 		msymbol(circle) mcolor(blue) xtitle("Time") ///
 		xlabel (1 "-4"  2 "-3"  3 "-2"  4 "-1"  5 "0"  6 "1"  7 "2"  8 "3" ) ///
-		ytitle(Coefficients) legend(off) ciopts(color(black)) ) 
+		ytitle(Coefficients) legend(off) ciopts(color(black))  
 
 		
 esttab ev* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f) ///
