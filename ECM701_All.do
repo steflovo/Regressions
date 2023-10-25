@@ -8,9 +8,8 @@
 
 sysuse auto.dta, clear
 
-sysuse auto.dta, clear
-reg mpg foreign
 tabstat mpg, by(foreign)
+reg mpg foreign
 dtable mpg, by(foreign)
 ttest mpg, by(foreign)
 
