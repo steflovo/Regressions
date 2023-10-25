@@ -222,12 +222,19 @@ reg outcome treated treated##after i.year,  cluster(district)
 reghdfe outcome treated treated##after, absorb(year district) cluster(district)
 estimates store reg4
 
+** Collapsed data before/after
+preserve
+	collapse (mean) outcome , by(district treated after)
+	reg outcome treated treated##after ,  robust
+	estimates store reg5
+restore
+
 ** Collapsed data at treatment level == balanced panel
 preserve
 	collapse (mean) outcome , by(treated year after)
 	reg outcome treated treated##after i.year,  robust
 	reghdfe outcome treated treated##after, absorb(year ) res(robust)
-	estimates store reg5
+	estimates store reg6
 restore
 
 esttab reg* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f)    mtitle(None Year State District Collapse) drop(0.* _cons) 	
