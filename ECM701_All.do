@@ -5,10 +5,11 @@
 **==============================================================================
 **   Differences in means
 **==============================================================================
+
 sysuse auto.dta, clear
 
 tabstat mpg, by(foreign)
-dtable mpg, by(foreign)
+dtable price mpg weight , by(foreign)
 
 **==============================================================================
 **   One variable 
@@ -16,16 +17,6 @@ dtable mpg, by(foreign)
 
 reg mpg foreign
 ttest mpg, by(foreign)
-
-**==============================================================================
-**   One variable 
-**==============================================================================
-
-reg mpg foreign 
-predict yhat, xb
-reg mpg foreign weight length
-predict yhat2, xb
-tabstat mpg yhat, by(foreign)
 
 **==============================================================================
 **   Multiple variables
@@ -83,11 +74,14 @@ esttab ttest*  using  ttest_part2 , csv replace star(* 0.1 ** 0.05 *** 0.01) noo
 **   Interactions
 **==============================================================================
 
-
 sysuse auto.dta, clear
 
 *overall
 reg price mpg 
+
+
+*==============================================================
+*============= Continuous variables ===========================
 
 *subsamples
 reg price mpg if foreign==0
@@ -104,7 +98,7 @@ reg price mpg i_mpg_for
 *interaction 2
 reg price c.mpg##foreign
 
-*interaction 3
+*interaction 3 (ONLY WHEN INTERACTING A CONTINOUS VARIABLE WITH A DUMMY)
 reg price foreign c.mpg#foreign
 test 1.foreign#c.mpg = 0.foreign#c.mpg
 
@@ -115,11 +109,28 @@ test 1.foreign#c.mpg = 0.foreign#c.mpg
 reg price mpg length if foreign==0
 reg price mpg length if foreign==1
 
-*interaction 4 (ONLY DO THIS WHEN INTERACTING A CONTINOUS VARIABLE WITH A DUMMY)
+*interaction 4 
 reg price foreign c.mpg#foreign length 
 
-*interaction 5 (ONLY DO THIS WHEN INTERACTING A CONTINOUS VARIABLE WITH A DUMMY)
+*interaction 5 (ONLY INTERACTING A CONTINOUS VARIABLE WITH A DUMMY)
 reg price foreign c.mpg#foreign c.length#foreign 
+
+
+*==============================================================
+*============= Interactions with 2 dummy variables ============
+
+sum weight, det
+ge heavy = weight>r(p50) // We define cars with above median weight as heavy.
+
+reg price heavy
+
+table foreign heavy, stat(mean price) nototal
+
+* simple interaction model
+reg price heavy##foreign 
+
+* then add controls
+reg price heavy##foreign length
 
 *==============================================================
 *============= Panel data======================================
@@ -186,7 +197,7 @@ preserve
 			legend(order(1 "Control" 2 "Treatment") position(11) ring(0)) name(overview, replace)
 restore
 
-binscatter outcome year, by(treated) linetype(connect) ///
+binscatter2 outcome year, by(treated) linetype(connect) ///
 			xline(2004.5) xlabel(2001(1)2008) ylabel(0(100)600)  ///
 			legend(order(1 "Control" 2 "Treated") ring(0) position(11))
 			
@@ -237,12 +248,12 @@ preserve
 	estimates store reg6
 restore
 
-esttab reg* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f)    mtitle(None Year State District Collapse) drop(0.* _cons) 	
+esttab reg* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f)    mtitle(None Year State District Collapse Collapse) drop(0.* _cons) 	
 
 ** Making the panel unbalanced
 ge outcome_mod = outcome
 replace outcome_mod = . if _n>500 & _n<900
-	
+drop if outcome_mod==.	
 ** baseline	
 reg outcome_mod treated treated##after , cluster(district)
 estimates store mod1
@@ -259,14 +270,22 @@ estimates store mod3
 reghdfe outcome_mod treated treated##after, absorb(year district) cluster(district)
 estimates store mod4
 
-** Collapsed data at treatment level == balanced panel
+** Collapsed data before/after
 preserve
-	collapse (mean) outcome_mod , by(treated year after)
-	reghdfe outcome_mod treated treated##after, absorb(year ) res(robust)
+	collapse (mean) outcome_mod , by(district treated after)
+	reg outcome_mod treated treated##after ,  robust
 	estimates store mod5
 restore
 
-esttab mod* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f)    mtitle(None Year State District Collapse) drop(0.* _cons)	
+** Collapsed data at treatment level == balanced panel
+preserve
+	collapse (mean) outcome_mod , by(treated year after)
+	reg outcome_mod treated treated##after i.year,  robust
+	reghdfe outcome_mod treated treated##after, absorb(year ) res(robust)
+	estimates store mod6
+restore
+
+esttab mod* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f)    mtitle(None Year State District Collapse Collapse) drop(0.* _cons)	
 
 	
 *==============================================================	
@@ -294,9 +313,9 @@ xtreg outcome  id_treated_* i.time ,  fe cluster(district)
 estimates store ev1
 
 *** DID = difference between average of pre and post coefficients
-nlcom (post:(_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+ 0)/4) ///
-	  (pre:(_b[id_treated_5]+_b[id_treated_6] +_b[id_treated_7] +_b[id_treated_8])/4) ///
-	  (DID: (_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+0)/4 - ///
+nlcom (pre:(_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+ 0)/4) ///
+	  (post:(_b[id_treated_5]+_b[id_treated_6] +_b[id_treated_7] +_b[id_treated_8])/4) ///
+	  (DID: - (_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+0)/4 + ///
 	  (_b[id_treated_5]+_b[id_treated_6] +_b[id_treated_7] +_b[id_treated_8] )/4)   ///  
 	  , post
 estimates store ev2
@@ -311,9 +330,9 @@ xtreg outcome  id_treated_* i.time ,  fe cluster(district)
 estimates store ev1
 
 *** DID = difference between average of pre and post coefficients
-nlcom (post:(_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+ 0)/4) ///
-	  (pre:(_b[id_treated_5]+_b[id_treated_6] +_b[id_treated_7] +_b[id_treated_8])/4) ///
-	  (DID: (_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+0)/4 - ///
+nlcom (pre:(_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+ 0)/4) ///
+	  (post:(_b[id_treated_5]+_b[id_treated_6] +_b[id_treated_7] +_b[id_treated_8])/4) ///
+	  (DID: - (_b[id_treated_1]+_b[id_treated_2] +_b[id_treated_3]+0)/4 + ///
 	  (_b[id_treated_5]+_b[id_treated_6] +_b[id_treated_7] +_b[id_treated_8] )/4)   ///  
 	  , post
 estimates store ev2
@@ -331,7 +350,7 @@ coefplot  ev1,  keep(id_treated_*) ///
 		yaxis("") xline(4.5) yline(0) vertical  name(method1, replace)  ///
 		msymbol(circle) mcolor(blue) xtitle("Time") ///
 		xlabel (1 "-4"  2 "-3"  3 "-2"  4 "-1"  5 "0"  6 "1"  7 "2"  8 "3" ) ///
-		ytitle(Coefficients) legend(off) ciopts(color(black))  
+		ytitle(Coefficients) legend(off) ciopts(color(black)) 
 
 		
 esttab ev* , star(* 0.1 ** 0.05 *** 0.01) noomitted se  nogaps scalar(N N_clust) sfmt(0) b(%9.3f) ///
